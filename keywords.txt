@@ -1,0 +1,27 @@
+#######################################
+# LogikaFuzzy
+#######################################
+
+LogikaFuzzy	KEYWORD1
+Himpunan	KEYWORD1
+
+segitiga	KEYWORD2
+trapesium	KEYWORD2
+konstanta	KEYWORD2
+tambahMasukan	KEYWORD2
+tambahKeluaran	KEYWORD2
+tambahKeluaranSugeno	KEYWORD2
+tambahHimpunan	KEYWORD2
+jika	KEYWORD2
+dan	KEYWORD2
+atau	KEYWORD2
+maka	KEYWORD2
+masukan	KEYWORD2
+hitung	KEYWORD2
+keluaran	KEYWORD2
+derajat	KEYWORD2
+kekuatan	KEYWORD2
+jumlahAturan	KEYWORD2
+aturResolusi	KEYWORD2
+
+TIDAK_ADA	LITERAL1
