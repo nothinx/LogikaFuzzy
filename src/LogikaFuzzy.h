@@ -23,6 +23,18 @@ inline Himpunan konstanta(float k) { return Himpunan{k, k, k, k}; }
 
 const uint8_t TIDAK_ADA = 0xFF; // dikembalikan fungsi tambah...() saat kapasitas penuh
 
+namespace logikafuzzy {
+// Ruang kerja centroid() per himpunan; disediakan pemanggil (H elemen di stack).
+struct Potong {
+  uint16_t a, b, c, d; // titik pertama dengan x >= a, x >= b, x > c, x > d
+  float alfa, p1, q1, p2, q2; // naik: p1 + q1 * t, turun: p2 + q2 * t
+};
+// Centroid Mamdani satu keluaran, lihat LogikaFuzzy.cpp. Bukan template agar
+// hanya ada satu salinan di flash untuk semua ukuran LogikaFuzzy<...>.
+__attribute__((noinline)) void centroid(const Himpunan *h, uint8_t jumlah, const float *alfa, float min, float max,
+              uint16_t resolusi, Potong *kerja, float &atas, float &bawah);
+} // namespace logikafuzzy
+
 template <uint8_t MASUKAN, uint8_t KELUARAN, uint8_t HIMPUNAN, uint8_t ATURAN>
 class LogikaFuzzy {
   static_assert(MASUKAN && KELUARAN && HIMPUNAN && ATURAN, "kapasitas tidak boleh 0");
@@ -156,13 +168,14 @@ private:
 
 template <uint8_t M, uint8_t K, uint8_t H, uint8_t A>
 float LogikaFuzzy<M, K, H, A>::kekuatan(uint8_t i) const {
-  if (i >= _jumlahAturan) return 0;
+  if (i >= A || i >= _jumlahAturan) return 0; // i >= A: tidak mungkin, tapi membuat batas array jelas bagi kompiler
   const Aturan &r = _aturan[i];
   float w = r.atau ? 0 : 1;
   for (uint8_t v = 0; v < M; v++) {
     if (!r.syarat[v]) continue;
     float d = _var[v].h[r.syarat[v] - 1].derajat(_nilai[v]);
     w = r.atau ? (d > w ? d : w) : (d < w ? d : w);
+    if (!r.atau && w <= 0) break; // DAN: sudah 0, syarat lain tidak mengubah hasil
   }
   return w;
 }
@@ -187,30 +200,25 @@ bool LogikaFuzzy<M, K, H, A>::hitung() {
   for (uint8_t k = 0; k < _jumlahKeluaran; k++) {
     const Variabel &v = _var[M + k];
     float atas = 0, bawah = 0;
-    if (v.sugeno) {
-      // Rata-rata berbobot: jumlah(w * z) / jumlah(w), satu suku per aturan.
-      for (uint8_t i = 0; i < _jumlahAturan; i++) {
-        uint8_t h = _aturan[i].keluaran;
-        if (h / H != M + k) continue;
-        float w = kekuatan(i);
+    // Kekuatan tiap aturan dihitung sekali. Mamdani: aturan dengan himpunan
+    // keluaran yang sama digabung lebih dulu (max), jadi centroid tidak
+    // bergantung pada jumlah aturan. Sugeno: rata-rata berbobot jumlah(w * z) / jumlah(w).
+    float alfa[H] = {};
+    for (uint8_t i = 0; i < _jumlahAturan; i++) {
+      uint8_t h = _aturan[i].keluaran;
+      if (h / H != M + k) continue;
+      float w = kekuatan(i);
+      if (w <= 0) continue;
+      if (v.sugeno) {
         atas += w * v.h[h % H].a;
         bawah += w;
+      } else if (w > alfa[h % H]) {
+        alfa[h % H] = w;
       }
-    } else {
-      float alfa[H];
-      for (uint8_t j = 0; j < v.jumlah; j++) alfa[j] = derajat((M + k) * H + j);
-      // Centroid diskret: jumlah(x * mu(x)) / jumlah(mu(x)) pada titik merata.
-      for (uint16_t t = 0; t < _resolusi; t++) {
-        float x = v.min + (v.max - v.min) * t / (_resolusi - 1);
-        float mu = 0;
-        for (uint8_t j = 0; j < v.jumlah; j++) {
-          float d = v.h[j].derajat(x);
-          if (d > alfa[j]) d = alfa[j];
-          if (d > mu) mu = d;
-        }
-        atas += x * mu;
-        bawah += mu;
-      }
+    }
+    if (!v.sugeno) {
+      logikafuzzy::Potong kerja[H];
+      logikafuzzy::centroid(v.h, v.jumlah, alfa, v.min, v.max, _resolusi, kerja, atas, bawah);
     }
     if (bawah > 0) {
       _hasil[k] = atas / bawah;

@@ -7,6 +7,24 @@
 
 static bool dekat(float a, float b) { return fabsf(a - b) < 1e-4f; }
 
+// Centroid acuan dengan rumus apa adanya: semua titik, semua himpunan, pembagian per titik.
+// hitung() melewati titik/himpunan bernilai 0 dan memakai kebalikan lebar; hasilnya harus sama.
+template <class F>
+static float acuan(const F &f, uint8_t idPertama, const Himpunan *h, uint8_t n, float mn, float mx, uint16_t titik) {
+  float atas = 0, bawah = 0;
+  for (uint16_t t = 0; t < titik; t++) {
+    float x = mn + (mx - mn) * t / (titik - 1), mu = 0;
+    for (uint8_t j = 0; j < n; j++) {
+      float d = h[j].derajat(x), a = f.derajat(idPertama + j);
+      if (d > a) d = a;
+      if (d > mu) mu = d;
+    }
+    atas += x * mu;
+    bawah += mu;
+  }
+  return bawah > 0 ? atas / bawah : (mn + mx) / 2;
+}
+
 int main() {
   { // derajat keanggotaan di titik kunci
     Himpunan s = segitiga(0, 5, 10);
@@ -152,6 +170,68 @@ int main() {
     f.masukan(lembap, 100);
     f.hitung();
     assert(dekat(f.kekuatan(8), 1) && f.keluaran(kipas) > 190);
+  }
+  { // centroid cepat = centroid acuan, sistem contoh KipasOtomatis dan PenyiramTanaman
+    const Himpunan HK[3] = {trapesium(0, 0, 30, 90), segitiga(60, 140, 220), trapesium(180, 230, 255, 255)};
+    LogikaFuzzy<1, 1, 3, 3> f;
+    uint8_t suhu = f.tambahMasukan(0, 50), kipas = f.tambahKeluaran(0, 255);
+    uint8_t DINGIN = f.tambahHimpunan(suhu, trapesium(0, 0, 20, 27));
+    uint8_t HANGAT = f.tambahHimpunan(suhu, segitiga(22, 28, 34));
+    uint8_t PANAS = f.tambahHimpunan(suhu, trapesium(30, 37, 50, 50));
+    uint8_t MATI = f.tambahHimpunan(kipas, HK[0]);
+    f.tambahHimpunan(kipas, HK[1]);
+    f.tambahHimpunan(kipas, HK[2]);
+    f.jika(DINGIN).maka(MATI);
+    f.jika(HANGAT).maka(MATI + 1);
+    f.jika(PANAS).maka(MATI + 2);
+    const uint16_t RES[4] = {101, 2, 7, 256};
+    for (uint8_t r = 0; r < 4; r++) {
+      f.aturResolusi(RES[r]);
+      for (int i = 0; i <= 500; i++) {
+        f.masukan(suhu, i * 0.1f);
+        f.hitung();
+        assert(fabsf(f.keluaran(kipas) - acuan(f, MATI, HK, 3, 0, 255, RES[r])) < 1e-3f);
+      }
+    }
+    f.aturResolusi(101);
+    f.masukan(suhu, 25); // angka di README
+    f.hitung();
+    assert(fabsf(f.keluaran(kipas) - 113.2527f) < 1e-3f);
+
+    const Himpunan HS[3] = {trapesium(0, 0, 2, 6), segitiga(4, 10, 18), trapesium(14, 22, 30, 30)};
+    LogikaFuzzy<2, 1, 3, 9> g;
+    uint8_t tanah = g.tambahMasukan(0, 100), suhu2 = g.tambahMasukan(0, 45), siram = g.tambahKeluaran(0, 30);
+    uint8_t T[3] = {g.tambahHimpunan(tanah, trapesium(0, 0, 25, 45)), g.tambahHimpunan(tanah, segitiga(30, 50, 70)),
+                    g.tambahHimpunan(tanah, trapesium(55, 75, 100, 100))};
+    uint8_t S[3] = {g.tambahHimpunan(suhu2, trapesium(0, 0, 22, 28)), g.tambahHimpunan(suhu2, segitiga(24, 29, 34)),
+                    g.tambahHimpunan(suhu2, trapesium(30, 36, 45, 45))};
+    uint8_t TIDAK = g.tambahHimpunan(siram, HS[0]);
+    g.tambahHimpunan(siram, HS[1]);
+    g.tambahHimpunan(siram, HS[2]);
+    const uint8_t TABEL[3][3] = {{1, 2, 2}, {0, 1, 1}, {0, 0, 0}};
+    for (int i = 0; i < 3; i++)
+      for (int j = 0; j < 3; j++) assert(g.jika(T[i]).dan(S[j]).maka(TIDAK + TABEL[i][j]));
+    for (int t = 0; t <= 100; t++)
+      for (int c = 0; c <= 90; c++) {
+        g.masukan(tanah, t);
+        g.masukan(suhu2, c * 0.5f);
+        g.hitung();
+        assert(fabsf(g.keluaran(siram) - acuan(g, TIDAK, HS, 3, 0, 30, 101)) < 1e-4f);
+      }
+  }
+  { // semesta keluaran selebar 0 dan himpunan di luar semesta tidak merusak hitung()
+    LogikaFuzzy<1, 1, 1, 1> f;
+    uint8_t a = f.tambahMasukan(0, 10), k = f.tambahKeluaran(5, 5);
+    uint8_t A = f.tambahHimpunan(a, trapesium(0, 0, 10, 10)), B = f.tambahHimpunan(k, segitiga(0, 5, 10));
+    f.jika(A).maka(B);
+    assert(f.hitung() && f.keluaran(k) == 5);
+    LogikaFuzzy<1, 1, 1, 1> g;
+    a = g.tambahMasukan(0, 10);
+    k = g.tambahKeluaran(0, 10);
+    A = g.tambahHimpunan(a, trapesium(0, 0, 10, 10));
+    B = g.tambahHimpunan(k, segitiga(20, 30, 40));
+    g.jika(A).maka(B);
+    assert(!g.hitung() && g.keluaran(k) == 5);
   }
   printf("Semua uji lolos\n");
   return 0;
