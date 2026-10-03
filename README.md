@@ -73,6 +73,32 @@ void loop() {
 
 Susun variabel, himpunan, dan aturan sekali di `setup()`. Di `loop()` cukup `masukan()`, `hitung()`, lalu `keluaran()`.
 
+## Hasil simulasi
+
+Semua grafik di bawah adalah **simulasi** di PC yang menjalankan kode library ini dengan sistem yang sama persis dengan contoh `KipasOtomatis` dan `PenyiramTanaman`, bukan pengukuran hardware.
+
+![Fungsi keanggotaan suhu DINGIN, HANGAT, PANAS dan kecepatan kipas MATI, SEDANG, KENCANG](extras/gambar/keanggotaan.svg)
+
+Himpunan masukan dan keluaran contoh `KipasOtomatis`. Daerah tumpang tindih (22–27 °C dan 30–34 °C) adalah tempat dua aturan aktif bersamaan.
+
+![Proses Mamdani untuk suhu 25 °C: fuzzifikasi, himpunan keluaran terpotong, agregasi, dan centroid PWM 113,3](extras/gambar/mamdani.svg)
+
+Langkah yang biasa ditulis di laporan, untuk suhu 25 °C: μ DINGIN = 0,29 dan μ HANGAT = 0,50 memotong MATI dan SEDANG (implikasi min), potongannya digabung (agregasi max, area biru), lalu centroid area itu menjadi keluaran: PWM 113,25.
+
+![Kurva suhu 0–50 °C terhadap PWM kipas](extras/gambar/kurva_kipas.svg)
+
+Keluaran untuk seluruh semesta suhu. Di luar daerah tumpang tindih PWM datar. Centroid tidak pernah mencapai ujung semesta, jadi kipas paling pelan PWM 31,8 dan paling kencang 228,6. Jika kipas harus benar-benar mati, tambahkan ambang di program (mis. PWM < 40 → 0).
+
+![Peta lama siram terhadap kelembapan tanah dan suhu](extras/gambar/peta_siram.svg)
+
+Contoh `PenyiramTanaman` (2 masukan, 9 aturan) untuk semua kombinasi tanah 0–100 % dan suhu 0–45 °C. Garis putus-putus adalah batas 3 detik: di kanannya pompa tidak dinyalakan.
+
+Grafik dibuat dari simulasi di PC yang menjalankan kode library ini (`extras/simulasi`):
+```sh
+cd extras/simulasi
+python gambar.py   # butuh g++ dan matplotlib
+```
+
 ## Kapasitas
 
 Angka di dalam `< >` adalah kapasitas maksimal, bukan jumlah yang wajib dipakai:

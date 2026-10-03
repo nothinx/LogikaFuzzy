@@ -43,6 +43,32 @@ void loop() {
 
 Compared from source code: eFLL 1.5.1 calls `malloc` for every variable, set, and rule, and `malloc`/`free` for every composition point on each `fuzzify()`; it has no Sugeno and exposes rules only as fired/not fired. qlibs (fis) is a larger, more complete engine (Mamdani, Sugeno, Tsukamoto) within a general-purpose collection.
 
+## Simulation results
+
+All charts are a **simulation** on a PC running this library's code, using exactly the systems from the `KipasOtomatis` (fan) and `PenyiramTanaman` (plant watering) examples. They are not hardware measurements.
+
+![Membership functions for temperature and fan speed](extras/gambar/keanggotaan.svg)
+
+Input sets COLD/WARM/HOT (DINGIN/HANGAT/PANAS) and output sets OFF/MEDIUM/FAST (MATI/SEDANG/KENCANG).
+
+![Mamdani steps for 25 °C: clipped output sets, max aggregation, centroid PWM 113.3](extras/gambar/mamdani.svg)
+
+At 25 °C, μ COLD = 0.29 and μ WARM = 0.50 clip OFF and MEDIUM (min implication), the clipped sets are merged (max aggregation, blue area), and the centroid gives PWM 113.25.
+
+![Temperature 0–50 °C to fan PWM curve](extras/gambar/kurva_kipas.svg)
+
+Output over the whole input range. The centroid never reaches the ends of the range: the slowest PWM is 31.8 and the fastest 228.6.
+
+![Watering time over soil moisture and temperature](extras/gambar/peta_siram.svg)
+
+Two inputs, nine rules. The dashed line is the 3-second threshold below which the example does not run the pump.
+
+To regenerate (`extras/simulasi`):
+```sh
+cd extras/simulasi
+python gambar.py   # needs g++ and matplotlib
+```
+
 ## Function reference
 
 | Indonesian | English | Notes |
