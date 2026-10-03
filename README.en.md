@@ -69,6 +69,21 @@ cd extras/simulasi
 python gambar.py   # needs g++ and matplotlib
 ```
 
+## Speed & memory
+
+Measured with simavr (cycle-accurate ATmega328P simulator), Arduino Uno 16 MHz, using the `KipasOtomatis` (fan) and `PenyiramTanaman` (watering) example systems. eFLL 1.5.1 got the same sets and rules.
+
+| `hitung()` | LogikaFuzzy 1.0.1 | 1.0.0 | eFLL 1.5.1 |
+|---|---|---|---|
+| Fan, 25 °C (2 rules fire) | 121,320 cycles (7.6 ms) | 340,354 (21.3 ms) | 40,832 (2.6 ms) |
+| Fan, 10 °C (1 rule fires) | 46,021 (2.9 ms) | 331,273 (20.7 ms) | 8,448 (0.5 ms) |
+| Watering, 9 rules (4 fire) | 158,640 (9.9 ms) | 344,367 (21.5 ms) | - |
+| Fan, 25 °C, `aturResolusi(21)` | 44,288 (2.8 ms) | 73,236 (4.6 ms) | - |
+| Fan output at 25 °C | 113.25 (matches MATLAB) | 113.25 | 113.77 |
+| Flash, equivalent fan sketch | 9,104 B | 7,264 B | 11,680 B |
+
+`hitung()` is O(rules × inputs + points × fired output sets). Since 1.0.1 the centroid skips unfired sets and turns set edges into point indices once, so the inner loop has no division and no float comparison: 2.2–7× faster for ~2 KB more flash. eFLL is 3–5× faster because it integrates the polygon geometrically; LogikaFuzzy keeps MATLAB's 101-point discrete centroid so results can be matched with a report (lower `aturResolusi()` if speed matters). Benchmark sketch: `extras/benchmark/LogikaFuzzyBenchmark`.
+
 ## Function reference
 
 | Indonesian | English | Notes |
@@ -98,7 +113,7 @@ python gambar.py   # needs g++ and matplotlib
 
 ## Status
 
-Version 1.0.0 passes automated logic tests on a PC and compiles on Uno, Mega, ESP32, ESP32-C3, ESP32-S3, STM32 Blackpill F411, and Bluepill F103. It is pure software and does not depend on specific hardware.
+Version 1.0.1 passes automated logic tests on a PC and compiles on Uno, Mega, ESP32, ESP32-C3, ESP32-S3, STM32 Blackpill F411, and Bluepill F103. It is pure software and does not depend on specific hardware.
 
 ## License
 

@@ -99,6 +99,31 @@ cd extras/simulasi
 python gambar.py   # butuh g++ dan matplotlib
 ```
 
+## Kecepatan & memori
+
+Diukur dengan simavr (simulator ATmega328P yang akurat per siklus) di Arduino Uno 16 MHz, memakai sistem contoh `KipasOtomatis` dan `PenyiramTanaman`. Pembanding: eFLL 1.5.1 dengan himpunan dan aturan yang sama.
+
+| `hitung()` | LogikaFuzzy 1.0.1 | LogikaFuzzy 1.0.0 | eFLL 1.5.1 (`fuzzify` + `defuzzify`) |
+|---|---|---|---|
+| Kipas, 25 °C (2 aturan aktif) | 121.320 siklus (7,6 ms) | 340.354 (21,3 ms) | 40.832 (2,6 ms) |
+| Kipas, 10 °C (1 aturan aktif) | 46.021 (2,9 ms) | 331.273 (20,7 ms) | 8.448 (0,5 ms) |
+| Penyiram, 9 aturan (4 aktif) | 158.640 (9,9 ms) | 344.367 (21,5 ms) | - |
+| Kipas, 25 °C, `aturResolusi(21)` | 44.288 (2,8 ms) | 73.236 (4,6 ms) | - |
+| Hasil kipas 25 °C | 113,25 (sama dengan MATLAB) | 113,25 | 113,77 |
+| Flash sketch kipas yang setara | 9.104 B | 7.264 B | 11.680 B |
+| RAM | 138 B (objek, statis) | 138 B | di heap, berubah tiap `fuzzify()` |
+
+`hitung()` O(A·M + R·n) waktu: A aturan × M masukan untuk kekuatan aturan, lalu R titik centroid (default 101) × n himpunan keluaran yang terkena aturan. Memori tambahan O(H) di stack.
+
+Optimasi di 1.0.1 (hasil sama dengan centroid apa adanya sampai 0,001, diuji di `extras/test` untuk 4 resolusi dan semua masukan contoh):
+- Kekuatan tiap aturan dihitung sekali, aturan DAN berhenti begitu derajatnya 0.
+- Centroid hanya memakai himpunan keluaran yang terkena aturan dan hanya titik di dalam alasnya. Batas sisi tiap himpunan diubah sekali menjadi nomor titik, sehingga di dalam loop tidak ada pembagian dan tidak ada pembanding float.
+- Hasilnya 2,2–7× lebih cepat. Harganya ±2 KB flash, karena kode centroid lebih panjang.
+
+Di mana kita kalah: eFLL 3–5× lebih cepat karena menghitung centroid secara geometris (luas poligon), bukan di 101 titik. LogikaFuzzy sengaja memakai centroid diskret 101 titik seperti MATLAB agar hasilnya bisa dicocokkan dengan laporan; jika kecepatan lebih penting, turunkan `aturResolusi()` (21 titik: 2,8 ms, hasil 111,43). eFLL memakai heap yang berubah tiap `fuzzify()`; LogikaFuzzy tidak memakai alokasi dinamis.
+
+Di ESP32 dan STM32 `src/` bebas promosi `float` → `double` (`-Wdouble-promotion`). Mengulang pengukuran: sketch `extras/benchmark/LogikaFuzzyBenchmark` (butuh simavr).
+
 ## Kapasitas
 
 Angka di dalam `< >` adalah kapasitas maksimal, bukan jumlah yang wajib dipakai:
@@ -219,7 +244,7 @@ g++ -std=c++11 -I. -I../../src uji.cpp ../../src/*.cpp -o uji && ./uji
 
 ## Status
 
-Versi 1.0.0 sudah lolos uji logika otomatis di PC dan compile di 7 board. Library ini murni perangkat lunak, jadi tidak bergantung pada hardware tertentu. Jika menemukan masalah, silakan buka *issue* di GitHub.
+Versi 1.0.1 sudah lolos uji logika otomatis di PC dan compile di 7 board. Library ini murni perangkat lunak, jadi tidak bergantung pada hardware tertentu. Jika menemukan masalah, silakan buka *issue* di GitHub.
 
 ## Lisensi
 
